@@ -9,7 +9,6 @@
 - Web Server Framework: [echo]()
 - ORM: [bun]()
 - Database: `PostgreSQL`
-- OTL: `Promethaus`
 
 ## Challenges
 
