@@ -3,10 +3,12 @@ package transport
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 
+	"github.com/go-playground/validator"
 	"github.com/jihedmastouri/game-integration-api-demo/service"
 	"github.com/jihedmastouri/game-integration-api-demo/transport/rest"
 	"github.com/labstack/echo/v4"
@@ -14,7 +16,7 @@ import (
 	"github.com/swaggo/echo-swagger"
 )
 
-func Web(srv service.Service) {
+func Web(address string, srv service.Service) {
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
 
@@ -51,10 +53,26 @@ func Web(srv service.Service) {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	e.Validator = &CustomValidation{validator: validator.New()}
+
 	rest.SetupRoutes(e, srv)
 
 	// Start server
-	if err := e.Start(":8080"); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := e.Start(address); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("failed to start server", "error", err)
 	}
+}
+
+type CustomValidation struct {
+	validator *validator.Validate
+}
+
+func (cv *CustomValidation) Validate(i any) error {
+	if err := cv.validator.Struct(i); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			return fmt.Errorf("Request validation failed: %v", validationErrors[0].Field())
+		}
+		return fmt.Errorf("Request validation failed: %v", err)
+	}
+	return nil
 }

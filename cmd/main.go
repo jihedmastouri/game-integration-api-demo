@@ -22,9 +22,14 @@ func main() {
 		getDefaultEnv("PG_DB", "postgres"),
 	)
 
-	_ = repository.Connect(databaseUrl)
-	srv := service.Service{}
-	transport.Web(srv)
+	appUrl := fmt.Sprintf("%s:%s",
+		getDefaultEnv("PG_USER", "postgres"),
+		getDefaultEnv("PG_PASS", "postgres"),
+	)
+
+	repo := repository.Connect(databaseUrl)
+	srv := service.NewService(&repo)
+	transport.Web(appUrl, srv)
 }
 
 func getDefaultEnv(name, defaultValue string) string {

@@ -5,8 +5,13 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func SetupRoutes(e *echo.Echo, srv service.Service) {
+type errorCode string
 
+const (
+	ValidationError errorCode = "RequestValidationError"
+)
+
+func SetupRoutes(e *echo.Echo, srv service.Service) {
 	api := e.Group("/api")
 
 	v1 := api.Group("/v1")
