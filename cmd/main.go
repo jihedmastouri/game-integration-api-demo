@@ -1,10 +1,17 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"log"
+	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/jihedmastouri/game-integration-api-demo/internal"
 	"github.com/jihedmastouri/game-integration-api-demo/repository"
 	"github.com/jihedmastouri/game-integration-api-demo/service"
 	"github.com/jihedmastouri/game-integration-api-demo/transport"
@@ -14,29 +21,22 @@ import (
 func main() {
 	loadDotenv()
 
-	databaseUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
-		getDefaultEnv("PG_USER", "postgres"),
-		getDefaultEnv("PG_PASS", "postgres"),
-		getDefaultEnv("PG_URL", "localhost"),
-		getDefaultEnv("PG_PORT", "5432"),
-		getDefaultEnv("PG_DB", "postgres"),
-	)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	appUrl := fmt.Sprintf("%s:%s",
-		getDefaultEnv("PG_USER", "postgres"),
-		getDefaultEnv("PG_PASS", "postgres"),
-	)
-
-	repo := repository.Connect(databaseUrl)
+	repo := repository.Connect(internal.Config.DATABASE_URL)
 	srv := service.NewService(&repo)
-	transport.Web(appUrl, srv)
-}
 
-func getDefaultEnv(name, defaultValue string) string {
-	if envValue := os.Getenv(name); envValue != "" {
-		return envValue
+	server := transport.Web(internal.Config.APP_URL, srv, logger)
+
+	done := make(chan bool, 1)
+	go gracefulShutdown(server, done)
+
+	// Start server
+	if err := server.Start(internal.Config.APP_URL); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		slog.Error("failed to start server", "error", err)
 	}
-	return defaultValue
+
+	<-done
 }
 
 func loadDotenv() {
@@ -48,4 +48,29 @@ func loadDotenv() {
 			log.Println("Error loading the .env")
 		}
 	}
+}
+
+type ServerWithShutdown interface {
+	Shutdown(context.Context) error
+}
+
+func gracefulShutdown(apiServer ServerWithShutdown, done chan bool) {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	<-ctx.Done()
+
+	log.Println("shutting down gracefully, press Ctrl+C again to force")
+	stop() // disables the signal NotifyContext and allowing Ctrl+C to force shutdown
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := apiServer.Shutdown(ctx); err != nil {
+		log.Printf("Server forced to shutdown with error: %v", err)
+	}
+
+	log.Println("Server exiting")
+
+	// Notify the main goroutine that the shutdown is complete
+	done <- true
 }

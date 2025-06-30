@@ -2,11 +2,9 @@ package transport
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/go-playground/validator"
 	"github.com/jihedmastouri/game-integration-api-demo/service"
@@ -16,11 +14,10 @@ import (
 	"github.com/swaggo/echo-swagger"
 )
 
-func Web(address string, srv service.Service) {
+func Web(address string, srv *service.Service, logger *slog.Logger) *echo.Echo {
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	e.Use(middleware.RequestLoggerWithConfig(
 		middleware.RequestLoggerConfig{
 			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
@@ -57,10 +54,8 @@ func Web(address string, srv service.Service) {
 
 	rest.SetupRoutes(e, srv)
 
-	// Start server
-	if err := e.Start(address); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		slog.Error("failed to start server", "error", err)
-	}
+	return e
+
 }
 
 type CustomValidation struct {
