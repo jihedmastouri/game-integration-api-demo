@@ -26,8 +26,8 @@ func init() {
 	)
 
 	Config.APP_URL = fmt.Sprintf("%s:%s",
-		getDefaultEnv("PG_USER", "postgres"),
-		getDefaultEnv("PG_PASS", "postgres"),
+		getDefaultEnv("APP_HOST", "postgres"),
+		getDefaultEnv("APP_PORT", "postgres"),
 	)
 }
 

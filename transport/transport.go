@@ -17,9 +17,20 @@ import (
 func Web(address string, srv *service.Service, logger *slog.Logger) *echo.Echo {
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
+	e.Use(middleware.Recover())
+
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+	e.GET("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
+	})
 
 	e.Use(middleware.RequestLoggerWithConfig(
 		middleware.RequestLoggerConfig{
+			LogStatus:   true,
+			LogURI:      true,
+			LogError:    true,
+			HandleError: true,
+			LogRemoteIP: true,
 			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 				if v.URI == "/health" {
 					return nil
@@ -42,20 +53,12 @@ func Web(address string, srv *service.Service, logger *slog.Logger) *echo.Echo {
 			},
 		},
 	))
-
-	e.Use(middleware.Recover())
-
-	e.GET("/swagger/*", echoSwagger.WrapHandler)
-	e.GET("/health", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
-	})
-
 	e.Validator = &CustomValidation{validator: validator.New()}
+	e.Use(rest.ErrorMiddlewareFactory())
 
 	rest.SetupRoutes(e, srv)
 
 	return e
-
 }
 
 type CustomValidation struct {

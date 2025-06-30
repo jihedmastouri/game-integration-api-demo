@@ -39,3 +39,17 @@ func AuthMiddlewareFactory(s *service.Service) echo.MiddlewareFunc {
 		}
 	}
 }
+
+func ErrorMiddlewareFactory() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			err := next(c)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, echo.Map{
+					"code": err.Error(),
+				})
+			}
+			return err
+		}
+	}
+}
