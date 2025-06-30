@@ -23,7 +23,7 @@ migration:
 		exit 1; \
 	fi
 	@mkdir -p repository/migrations
-	@timestamp=$$(date +%s); \
+	@timestamp=$$(date +%Y%m%d%H%M%S); \
 	touch "repository/migrations/$${timestamp}_$(name).up.sql"; \
 	touch "repository/migrations/$${timestamp}_$(name).down.sql"; \
 	echo "Created migration files:"; \

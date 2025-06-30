@@ -1,6 +1,8 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+--bun:split
+
 -- Create players table
 CREATE TABLE players (
     id SERIAL PRIMARY KEY,
@@ -10,6 +12,8 @@ CREATE TABLE players (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+--bun:split
+
 -- Create player sessions table
 CREATE TABLE player_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -17,6 +21,8 @@ CREATE TABLE player_sessions (
     expires_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     issued_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+--bun:split
 
 -- Create transactions table
 CREATE TABLE transactions (
@@ -31,6 +37,8 @@ CREATE TABLE transactions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+--bun:split
 
 CREATE INDEX idx_transactions_player_id ON transactions(player_id, status, created_at);
 

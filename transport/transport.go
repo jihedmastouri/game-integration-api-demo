@@ -7,11 +7,14 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator"
-	"github.com/jihedmastouri/game-integration-api-demo/service"
-	"github.com/jihedmastouri/game-integration-api-demo/transport/rest"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/swaggo/echo-swagger"
+	echoSwagger "github.com/swaggo/echo-swagger"
+
+	"github.com/jihedmastouri/game-integration-api-demo/service"
+	"github.com/jihedmastouri/game-integration-api-demo/transport/rest"
+
+	_ "github.com/jihedmastouri/game-integration-api-demo/docs"
 )
 
 func Web(address string, srv *service.Service, logger *slog.Logger) *echo.Echo {

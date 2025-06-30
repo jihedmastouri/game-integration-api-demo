@@ -14,6 +14,8 @@ import (
 	"github.com/jihedmastouri/game-integration-api-demo/repository"
 	"github.com/jihedmastouri/game-integration-api-demo/service"
 	"github.com/jihedmastouri/game-integration-api-demo/transport"
+
+	_ "github.com/jihedmastouri/game-integration-api-demo/repository/migrations"
 )
 
 func main() {
