@@ -1,6 +1,12 @@
-.PHONY: make_doc
-make_doc:
-	@docker run --rm -v $(pwd):/code ghcr.io/swaggo/swag:latest
+.PHONY: init
+init:
+	@go install github.com/air-verse/air@latest
+	@go install github.com/swaggo/swag/cmd/swag@latest
+
+.PHONY: swag
+swag:
+	@swag init -g "./transport/transport.go"
+
 
 .PHONY: build
 build:
