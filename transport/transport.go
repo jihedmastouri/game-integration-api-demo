@@ -12,7 +12,7 @@ import (
 	echoSwagger "github.com/swaggo/echo-swagger"
 
 	"github.com/jihedmastouri/game-integration-api-demo/service"
-	"github.com/jihedmastouri/game-integration-api-demo/transport/rest"
+	"github.com/jihedmastouri/game-integration-api-demo/transport/handlers"
 
 	_ "github.com/jihedmastouri/game-integration-api-demo/docs"
 )
@@ -57,9 +57,9 @@ func Web(address string, srv *service.Service, logger *slog.Logger) *echo.Echo {
 		},
 	))
 	e.Validator = &CustomValidation{validator: validator.New()}
-	e.Use(rest.ErrorMiddlewareFactory())
+	e.Use(handlers.ErrorMiddlewareFactory())
 
-	rest.SetupRoutes(e, srv)
+	handlers.SetupRoutes(e, srv)
 
 	return e
 }
