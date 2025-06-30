@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/jihedmastouri/game-integration-api-demo/models"
@@ -31,12 +32,19 @@ type RepoPostgresSQLProvider struct {
 	TransactionRepository
 }
 
-func Connect(databaseUrl string) RepoPostgresSQLProvider {
+func Connect(databaseUrl string) (*RepoPostgresSQLProvider, error) {
+	slog.Debug(databaseUrl)
+
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(databaseUrl)))
 	db := bun.NewDB(sqldb, pgdialect.New())
 
-	return RepoPostgresSQLProvider{
+	err := db.Ping()
+	if err != nil {
+		return nil, err
+	}
+
+	return &RepoPostgresSQLProvider{
 		NewPlayerProvider(db),
 		NewTransactionProvider(db),
-	}
+	}, nil
 }

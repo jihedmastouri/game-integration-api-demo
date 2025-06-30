@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,17 +14,19 @@ import (
 	"github.com/jihedmastouri/game-integration-api-demo/repository"
 	"github.com/jihedmastouri/game-integration-api-demo/service"
 	"github.com/jihedmastouri/game-integration-api-demo/transport"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	loadDotenv()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug, AddSource: true}))
+	slog.SetDefault(logger)
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	repo, err := repository.Connect(internal.Config.DATABASE_URL)
+	if err != nil {
+		slog.Error("Failed to connect to db", "error", err)
+		os.Exit(1) // Exit if database connection fails
+	}
 
-	repo := repository.Connect(internal.Config.DATABASE_URL)
-	srv := service.NewService(&repo)
-
+	srv := service.NewService(repo)
 	server := transport.Web(internal.Config.APP_URL, srv, logger)
 
 	done := make(chan bool, 1)
@@ -34,20 +35,11 @@ func main() {
 	// Start server
 	if err := server.Start(internal.Config.APP_URL); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("failed to start server", "error", err)
+		os.Exit(1)
 	}
 
 	<-done
-}
-
-func loadDotenv() {
-	if _, err := os.Stat(".env"); os.IsNotExist(err) {
-		log.Println("Warning: .env file not found")
-	} else {
-		err := godotenv.Load()
-		if err != nil {
-			log.Println("Error loading the .env")
-		}
-	}
+	slog.Info("Application shutdown complete")
 }
 
 type ServerWithShutdown interface {
@@ -59,17 +51,20 @@ func gracefulShutdown(apiServer ServerWithShutdown, done chan bool) {
 	defer stop()
 
 	<-ctx.Done()
+	slog.Info("Shutdown signal received, shutting down gracefully. Press Ctrl+C again to force shutdown.")
 
-	log.Println("shutting down gracefully, press Ctrl+C again to force")
-	stop() // disables the signal NotifyContext and allowing Ctrl+C to force shutdown
+	// Stop listening for new signals to allow force shutdown
+	stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Create a timeout context for the shutdown
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := apiServer.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown with error: %v", err)
-	}
 
-	log.Println("Server exiting")
+	if err := apiServer.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Server forced to shutdown with error", "error", err)
+	} else {
+		slog.Info("Server shutdown completed successfully")
+	}
 
 	// Notify the main goroutine that the shutdown is complete
 	done <- true
