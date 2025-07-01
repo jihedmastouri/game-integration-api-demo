@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,14 +15,14 @@ import (
 
 // Helper method to check if player has pending or processing transactions
 func (s *Service) hasPendingTransactions(ctx context.Context, playerID uint64) (bool, error) {
-	pendingTxs, err := s.Repository.GetFirstPendingTransactionsByPlayerID(ctx, playerID)
-	if err != nil {
+	pendingTxs, err := s.GetFirstPendingTransactionsByPlayerID(ctx, playerID)
+	if err != nil && err != sql.ErrNoRows {
 		return false, err
 	}
 
 	// Also check for processing transactions
-	processingTxs, err := s.Repository.GetFirstProcessingTransactionsByPlayerID(ctx, playerID)
-	if err != nil {
+	processingTxs, err := s.GetFirstProcessingTransactionsByPlayerID(ctx, playerID)
+	if err != nil && err != sql.ErrNoRows {
 		return false, err
 	}
 
@@ -30,7 +31,7 @@ func (s *Service) hasPendingTransactions(ctx context.Context, playerID uint64) (
 
 func (s *Service) ProcessBet(ctx context.Context, player *models.Player, req shared.WithdrawRequest) (*shared.BetOperationResponse, error) {
 	prevTx, err := s.GetTransactionByProviderID(ctx, req.ProviderTransactionID)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("failed to check for any previous transactions: %w", err)
 	}
 
@@ -126,13 +127,26 @@ func (s *Service) ProcessBet(ctx context.Context, player *models.Player, req sha
 
 func (s *Service) ProcessSettle(ctx context.Context, player *models.Player, req shared.DepositRequest) (*shared.BetOperationResponse, error) {
 	prevTx, err := s.GetTransactionByProviderID(ctx, req.ProviderTransactionID)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("failed to check for any previous transactions: %w", err)
 	}
 
 	// reject duplicate transaction
 	if prevTx != nil {
 		return nil, fmt.Errorf("Duplicate transaction")
+	}
+
+	oldTx, err := s.GetTransactionByProviderID(ctx, req.ProviderWithdrawnTransactionID)
+	if err != nil || oldTx == nil {
+		return nil, fmt.Errorf("Failed to get previous bet. make sure to include a valide previous bet_id to settle it.")
+	}
+
+	if oldTx.Status == models.TransactionStatusFinalized {
+		return nil, fmt.Errorf("This bet is already settled.")
+	}
+
+	if oldTx.Status == models.TransactionStatusFailed {
+		return nil, fmt.Errorf("The bet failed. you can not settle failed bets")
 	}
 
 	// Check if player has any pending transactions
@@ -206,14 +220,8 @@ func (s *Service) ProcessSettle(ctx context.Context, player *models.Player, req 
 			}, nil
 		}
 
-		//update withdraw transaction
-		oldTx, err := s.GetTransactionByProviderID(ctx, req.ProviderWithdrawnTransactionID)
-		if err != nil {
-			slog.Error("failed to update withdraw transaction", "error", err)
-		}
-
-		oldTx.Status = models.TransactionStatusCompensated
-		s.UpdateTransaction(ctx, oldTx)
+		oldTx.Status = models.TransactionStatusFinalized
+		err = s.UpdateTransaction(ctx, oldTx)
 		if err != nil {
 			slog.Error("failed to update withdraw transaction", "error", err)
 		}
@@ -222,6 +230,12 @@ func (s *Service) ProcessSettle(ctx context.Context, player *models.Player, req 
 	} else {
 		// If amount is 0, bet is lost - no deposit needed
 		newBalance = oldBalance
+
+		oldTx.Status = models.TransactionStatusFinalized
+		err = s.UpdateTransaction(ctx, oldTx)
+		if err != nil {
+			slog.Error("failed to update withdraw transaction", "error", err)
+		}
 	}
 
 	// Update transaction status
@@ -259,11 +273,11 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 	}
 
 	// Validate the transaction belongs to this player
-	if originalTx.Status == models.TransactionStatusCompensated {
+	if originalTx.Status == models.TransactionStatusFinalized {
 		return nil, errors.New("transaction already finalized")
 	}
 
-	originalTx.Status = models.TransactionStatusCompensated
+	originalTx.Status = models.TransactionStatusFinalized
 	err = s.Repository.UpdateTransaction(ctx, originalTx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update original transaction: %w", err)
@@ -341,6 +355,7 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 			}, nil
 		}
 		newBalance = depositResp.Balance
+
 	} else if originalTx.Type == models.TransactionTypeDeposit {
 		// Original was a deposit (settle), so we need to withdraw back
 		withdrawReq := walletclient.WithdrawRequest{

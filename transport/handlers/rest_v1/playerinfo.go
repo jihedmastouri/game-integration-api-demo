@@ -31,7 +31,7 @@ func (h *Handlers) PlayerInfo(c echo.Context) error {
 
 	// Get player info from service
 	walletInfo, err := h.srv.WalletClient.GetBalance(player.ID)
-	if err != nil {
+	if err != nil || walletInfo == nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, shared.ErrorResponse{
 			Code: shared.ServiceUnAvailable,
 			Msg:  err.Error(),

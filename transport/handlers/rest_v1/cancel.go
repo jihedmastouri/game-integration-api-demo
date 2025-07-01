@@ -54,7 +54,7 @@ func (h *Handlers) Cancel(c echo.Context) error {
 	cancelResponse, err := h.srv.ProcessCancel(c.Request().Context(), &player, req)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, shared.ErrorResponse{
-			Code: shared.ServiceUnAvailable,
+			Code: shared.InternalServerError,
 			Msg:  err.Error(),
 		})
 	}

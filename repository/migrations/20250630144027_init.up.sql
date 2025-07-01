@@ -32,7 +32,7 @@ CREATE TABLE transactions (
     withdraw_provider_id BIGINT,
     amount BIGINT NOT NULL CHECK (amount >= 0),
     currency VARCHAR(3) NOT NULL CHECK (currency IN ('USD', 'EUR', 'KES')),
-    status VARCHAR(12) NOT NULL CHECK (status IN ('PENDING', 'CONFIRMED', 'FAILED', 'COMPENSATED', 'PROCESSING')),
+    status VARCHAR(12) NOT NULL CHECK (status IN ('PENDING', 'CONFIRMED', 'FAILED', 'FINAL', 'PROCESSING')),
     type VARCHAR(8) NOT NULL CHECK (type IN ('WITHDRAW', 'DEPOSIT', 'CANCEL')),
 	attempts integer NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

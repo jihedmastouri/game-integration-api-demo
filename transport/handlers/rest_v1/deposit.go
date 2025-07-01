@@ -1,6 +1,7 @@
 package rest_v1
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/jihedmastouri/game-integration-api-demo/models"
@@ -35,6 +36,7 @@ func (h *Handlers) Deposit(c echo.Context) error {
 	// Bind request
 	var req shared.DepositRequest
 	if err := c.Bind(&req); err != nil {
+		slog.Debug(err.Error())
 		return echo.NewHTTPError(http.StatusBadRequest, shared.ErrorResponse{
 			Code: shared.ValidationError,
 			Msg:  err.Error(),

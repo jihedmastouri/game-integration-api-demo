@@ -19,11 +19,11 @@ const (
 	TransactionTypeCancel   TransactionType = "CANCEL"
 
 	// Transaction Status
-	TransactionStatusPending     TransactionStatus = "PENDING"
-	TransactionStatusConfirmed   TransactionStatus = "CONFIRMED"
-	TransactionStatusFailed      TransactionStatus = "FAILED"
-	TransactionStatusCompensated TransactionStatus = "COMPENSATED"
-	TransactionStatusProcessing  TransactionStatus = "PROCESSING"
+	TransactionStatusPending    TransactionStatus = "PENDING"
+	TransactionStatusConfirmed  TransactionStatus = "CONFIRMED"
+	TransactionStatusFailed     TransactionStatus = "FAILED"
+	TransactionStatusFinalized  TransactionStatus = "FINAL"
+	TransactionStatusProcessing TransactionStatus = "PROCESSING"
 
 	// Currencies
 	CurrencyUSD Currency = "USD"

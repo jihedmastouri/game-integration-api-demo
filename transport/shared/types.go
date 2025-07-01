@@ -17,14 +17,14 @@ type PlayerInfoResponse struct {
 
 type DepositRequest struct {
 	Currency                       models.Currency `json:"currency" validate:"required" example:"USD"`
-	Amount                         float64         `json:"amount" validate:"required,min=0" example:"1000"`
+	Amount                         float64         `json:"amount" validate:"min=0" example:"1000.00"`
 	ProviderTransactionID          uint64          `json:"provider_transaction_id" validate:"required" example:"12345"`
 	ProviderWithdrawnTransactionID uint64          `json:"provider_withdrawn_transaction_id" validate:"required" example:"12344"`
 }
 
 type WithdrawRequest struct {
 	Currency              models.Currency `json:"currency" validate:"required" example:"USD"`
-	Amount                float64         `json:"amount" validate:"required,min=1" example:"100"`
+	Amount                float64         `json:"amount" validate:"required,gt=0" example:"100"`
 	ProviderTransactionID uint64          `json:"provider_transaction_id" validate:"required" example:"12345"`
 }
 

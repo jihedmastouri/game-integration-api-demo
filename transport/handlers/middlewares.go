@@ -27,7 +27,7 @@ func AuthMiddlewareFactory(s *service.Service) echo.MiddlewareFunc {
 			))
 
 			player, err := s.AuthorizePlayer(c.Request().Context(), token)
-			if err != nil {
+			if err != nil || player == nil {
 				c.Logger().Errorf("failed to validate token: %v", err)
 				return echo.NewHTTPError(http.StatusUnauthorized, shared.ErrorResponse{
 					Code: shared.Unauthorized,

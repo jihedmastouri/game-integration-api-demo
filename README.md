@@ -23,6 +23,12 @@ Use the endpoint `POST /seed` to fill the auth table with this data:
 {ID: 34673635133, Username: "player_34673635133", Password: "demo123!"}
 ```
 
+example with cURL:
+
+```sh
+curl -X POST --location 'http://localhost:3000/seed' --header 'Content-Type: application/json'
+```
+
 1. Access Swagger documentation:
 
 ```sh
@@ -65,8 +71,9 @@ The system is designed using Clean Architecture principles to ensure low couplin
 
 To interface with the mock wallet service:
 
-* Added retry mechanisms to handle transient failures.
-* Ensured idempotency to avoid duplicated transactions.
+- Ensured idempotency to avoid duplicate transactions.
+- Added retry mechanisms in a separate worker to handle transient failures.
+- Ensured that all transactions for a given user are retried in the correct order.
 
 ### 2- Choosing an ORM
 

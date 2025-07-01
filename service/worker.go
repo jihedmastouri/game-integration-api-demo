@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -42,11 +43,15 @@ func (s *Service) processPendingTransactions(ctx context.Context) {
 		tx, err := s.Repository.GetNextProcessableTransaction(ctx)
 		if err != nil {
 			// If no rows found, it means no processable transactions available
-			if err.Error() == "sql: no rows in result set" {
+			if err == sql.ErrNoRows {
 				return // No more transactions to process
 			}
 			slog.Error("Failed to get next processable transaction", "error", err)
 			return
+		}
+
+		if tx == nil {
+			return // No more transactions to process
 		}
 
 		// Check if transaction exceeded max retry attempts
@@ -71,27 +76,19 @@ func (s *Service) processPendingTransactions(ctx context.Context) {
 		tx.Attempts++
 
 		// Process the transaction
-		success := false
+		retrySTatus := models.TransactionStatusPending
 		switch tx.Type {
 		case models.TransactionTypeWithdraw:
-			success = s.retryWithdraw(ctx, tx)
+			retrySTatus = s.retryWithdraw(ctx, tx)
 		case models.TransactionTypeDeposit:
-			success = s.retryDeposit(ctx, tx)
+			retrySTatus = s.retryDeposit(ctx, tx)
 		case models.TransactionTypeCancel:
-			success = s.retryCancel(ctx, tx)
+			retrySTatus = s.retryCancel(ctx, tx)
 		default:
 			slog.Error("Unknown transaction type", "transaction_id", tx.ID, "type", tx.Type)
 		}
 
-		// Update final status
-		if success {
-			tx.Status = models.TransactionStatusConfirmed
-			slog.Info("Successfully processed pending transaction", "transaction_id", tx.ID, "type", tx.Type)
-		} else {
-			tx.Status = models.TransactionStatusPending // Reset to pending for next retry
-			slog.Warn("Failed to process pending transaction", "transaction_id", tx.ID, "type", tx.Type, "attempts", tx.Attempts)
-		}
-
+		tx.Status = retrySTatus
 		if err := s.Repository.UpdateTransaction(ctx, tx); err != nil {
 			slog.Error("Failed to update transaction after retry", "error", err, "transaction_id", tx.ID)
 		}
@@ -102,11 +99,11 @@ func (s *Service) processPendingTransactions(ctx context.Context) {
 }
 
 // retryWithdraw retries a pending withdrawal transaction
-func (s *Service) retryWithdraw(ctx context.Context, tx *models.Transaction) bool {
+func (s *Service) retryWithdraw(ctx context.Context, tx *models.Transaction) models.TransactionStatus {
 	ogAmount, err := strconv.ParseFloat(tx.Amount, 64)
 	if err != nil {
 		slog.Error(err.Error())
-		return false
+		return models.TransactionStatusFailed
 	}
 
 	withdrawReq := walletclient.WithdrawRequest{
@@ -124,23 +121,34 @@ func (s *Service) retryWithdraw(ctx context.Context, tx *models.Transaction) boo
 	_, err = s.WalletClient.Withdraw(withdrawReq)
 	if err != nil {
 		slog.Error("Failed to retry withdrawal", "error", err, "transaction_id", tx.ID)
-		return false
+		return models.TransactionStatusPending
 	}
 
-	return true
+	return models.TransactionStatusConfirmed
 }
 
 // retryDeposit retries a pending deposit transaction
-func (s *Service) retryDeposit(ctx context.Context, tx *models.Transaction) bool {
+func (s *Service) retryDeposit(ctx context.Context, tx *models.Transaction) models.TransactionStatus {
 	ogAmount, err := strconv.ParseFloat(tx.Amount, 64)
 	if err != nil {
 		slog.Error(err.Error())
-		return false
+		return models.TransactionStatusFailed
+	}
+
+	oldTx, err := s.GetTransactionByProviderID(ctx, tx.WithdrawProviderID)
+	if err != nil || oldTx == nil {
+		slog.Error("failed to get withdraw transaction", "error", err)
+		return models.TransactionStatusFailed
+	}
+
+	if oldTx.Status == models.TransactionStatusFailed {
+		slog.Error("Withdraw transaction is failed. you cannot deposite")
+		return models.TransactionStatusFailed
 	}
 
 	if ogAmount < 0 {
 		slog.Error("og amount should not be negative", "transaction_id", tx.ID.String())
-		return true
+		return models.TransactionStatusFailed
 	}
 
 	if ogAmount > 0 {
@@ -158,37 +166,32 @@ func (s *Service) retryDeposit(ctx context.Context, tx *models.Transaction) bool
 		_, err := s.WalletClient.Deposit(depositReq)
 		if err != nil {
 			slog.Error("Failed to retry deposit", "error", err, "transaction_id", tx.ID)
-			return false
+			return models.TransactionStatusPending
 		}
 	}
 
-	//update withdraw transaction
-	oldTx, err := s.GetTransactionByProviderID(ctx, tx.ProviderID)
-	if err != nil {
-		slog.Error("failed to update withdraw transaction", "error", err)
-	}
-	oldTx.Status = models.TransactionStatusCompensated
-	s.UpdateTransaction(ctx, oldTx)
+	oldTx.Status = models.TransactionStatusFinalized
+	err = s.UpdateTransaction(ctx, oldTx)
 	if err != nil {
 		slog.Error("failed to update withdraw transaction", "error", err)
 	}
 
-	return true
+	return models.TransactionStatusConfirmed
 }
 
 // retryCancel retries a pending cancel transaction
-func (s *Service) retryCancel(ctx context.Context, tx *models.Transaction) bool {
+func (s *Service) retryCancel(ctx context.Context, tx *models.Transaction) models.TransactionStatus {
 	ogAmount, err := strconv.ParseFloat(tx.Amount, 64)
 	if err != nil {
 		slog.Error(err.Error())
-		return false
+		return models.TransactionStatusFailed
 	}
 
 	// Find the original transaction to understand what to reverse
 	originalTx, err := s.Repository.GetTransactionByProviderID(ctx, tx.ProviderID)
 	if err != nil {
 		slog.Error("Failed to find original transaction for cancel", "error", err, "transaction_id", tx.ID)
-		return false
+		return models.TransactionStatusFailed
 	}
 
 	// Reverse the original transaction
@@ -209,8 +212,9 @@ func (s *Service) retryCancel(ctx context.Context, tx *models.Transaction) bool 
 		_, err := s.WalletClient.Deposit(depositReq)
 		if err != nil {
 			slog.Error("Failed to retry cancel deposit", "error", err, "transaction_id", tx.ID)
-			return false
+			return models.TransactionStatusPending
 		}
+
 	} else if originalTx.Type == models.TransactionTypeDeposit {
 		// Original was a deposit (settle), so we need to withdraw back
 		withdrawReq := walletclient.WithdrawRequest{
@@ -228,19 +232,17 @@ func (s *Service) retryCancel(ctx context.Context, tx *models.Transaction) bool 
 		_, err := s.WalletClient.Withdraw(withdrawReq)
 		if err != nil {
 			slog.Error("Failed to retry cancel withdrawal", "error", err, "transaction_id", tx.ID)
-			return false
+			return models.TransactionStatusPending
 		}
 	} else {
 		slog.Error("Cannot cancel a cancel transaction", "transaction_id", tx.ID, "original_type", originalTx.Type)
-		return false
+		return models.TransactionStatusFailed
 	}
 
-	// Update the original transaction status to compensated
-	originalTx.Status = models.TransactionStatusCompensated
+	originalTx.Status = models.TransactionStatusFinalized
 	if err := s.Repository.UpdateTransaction(ctx, originalTx); err != nil {
 		slog.Error("Failed to update original transaction status", "error", err, "transaction_id", originalTx.ID)
-		// Don't return false here as the wallet operation succeeded
 	}
 
-	return true
+	return models.TransactionStatusConfirmed
 }

@@ -20,13 +20,13 @@ type ClaimType struct {
 }
 
 type AuthRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string `json:"username" example:"player_34633089486"`
+	Password string `json:"password" example:"demo123!"`
 }
 
 func (s *Service) AuthenticatePlayer(ctx context.Context, req AuthRequest) (token string, err error) {
 	player, err := s.Repository.GetPlayerByUsername(ctx, req.Username)
-	if err != nil {
+	if err != nil || player == nil {
 		return "", errors.New("USER NOT FOUND")
 	}
 

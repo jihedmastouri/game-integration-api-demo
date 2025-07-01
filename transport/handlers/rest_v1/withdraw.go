@@ -53,7 +53,7 @@ func (h *Handlers) Withdraw(c echo.Context) error {
 	betResponse, err := h.srv.ProcessBet(c.Request().Context(), &player, req)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, shared.ErrorResponse{
-			Code: shared.ServiceUnAvailable,
+			Code: shared.InternalServerError,
 			Msg:  err.Error(),
 		})
 	}

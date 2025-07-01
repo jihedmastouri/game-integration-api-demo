@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -23,8 +24,11 @@ func (t TransactionProvider) CreateTransaction(ctx context.Context, transaction 
 }
 
 func (t TransactionProvider) GetTransactionByProviderID(ctx context.Context, providerID uint64) (*models.Transaction, error) {
-	transaction := &models.Transaction{}
+	transaction := new(models.Transaction)
 	err := t.NewSelect().Model(transaction).Where("provider_id = ?", providerID).Scan(ctx)
+	if err == sql.ErrNoRows {
+		transaction = nil
+	}
 	return transaction, err
 }
 
@@ -34,51 +38,57 @@ func (t TransactionProvider) UpdateTransaction(ctx context.Context, transaction 
 }
 
 func (t TransactionProvider) GetTransactionByID(ctx context.Context, id uuid.UUID) (*models.Transaction, error) {
-	transaction := &models.Transaction{}
+	transaction := new(models.Transaction)
 	err := t.NewSelect().Model(transaction).Where("id = ?", id).Scan(ctx)
+	if err == sql.ErrNoRows {
+		transaction = nil
+	}
 	return transaction, err
 }
 
 func (t TransactionProvider) GetFirstProcessingTransactionsByPlayerID(ctx context.Context, playerID uint64) (*models.Transaction, error) {
-	var transactions *models.Transaction
+	transaction := new(models.Transaction)
 	err := t.NewSelect().
-		Model(&transactions).
+		Model(transaction).
 		Where("player_id = ? AND status = ?", playerID, models.TransactionStatusProcessing).
 		Order("created_at ASC").
 		Limit(1).
 		Scan(ctx)
-	return transactions, err
+	if err == sql.ErrNoRows {
+		transaction = nil
+	}
+	return transaction, err
 }
 
 func (t TransactionProvider) GetFirstPendingTransactionsByPlayerID(ctx context.Context, playerID uint64) (*models.Transaction, error) {
-	var transactions *models.Transaction
+	transaction := new(models.Transaction)
 	err := t.NewSelect().
-		Model(&transactions).
+		Model(transaction).
 		Where("player_id = ? AND status = ?", playerID, models.TransactionStatusPending).
 		Order("created_at ASC").
 		Limit(1).
 		Scan(ctx)
-	return transactions, err
+	if err == sql.ErrNoRows {
+		transaction = nil
+	}
+	return transaction, err
 }
 
 // GetNextProcessableTransaction returns the first pending transaction for a user
 // that doesn't have any other transaction currently being processed
 func (t TransactionProvider) GetNextProcessableTransaction(ctx context.Context) (*models.Transaction, error) {
-	// Find the oldest pending transaction where the player doesn't have any processing transactions
-	var transaction models.Transaction
+	transaction := new(models.Transaction)
 	err := t.NewSelect().
-		Model(&transaction).
+		Model(transaction).
 		Where("status = ?", models.TransactionStatusPending).
 		Where("player_id NOT IN (SELECT DISTINCT player_id FROM transactions WHERE status = ?)", models.TransactionStatusProcessing).
 		Order("created_at ASC").
 		Limit(1).
 		Scan(ctx)
-
-	if err != nil {
-		return nil, err
+	if err == sql.ErrNoRows {
+		transaction = nil
 	}
-
-	return &transaction, nil
+	return transaction, nil
 }
 
 // StartProcessingTransaction atomically marks a transaction as processing

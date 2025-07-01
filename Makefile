@@ -2,6 +2,7 @@
 init:
 	@go install github.com/air-verse/air@latest
 	@go install github.com/swaggo/swag/cmd/swag@latest
+	@go install github.com/air-verse/air@latest
 
 .PHONY: swag
 swag:

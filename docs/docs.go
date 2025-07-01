@@ -348,23 +348,27 @@ const docTemplate = `{
                 "PENDING",
                 "CONFIRMED",
                 "FAILED",
-                "COMPENSATED"
+                "FINAL",
+                "PROCESSING"
             ],
             "x-enum-varnames": [
                 "TransactionStatusPending",
                 "TransactionStatusConfirmed",
                 "TransactionStatusFailed",
-                "TransactionStatusCompensated"
+                "TransactionStatusFinalized",
+                "TransactionStatusProcessing"
             ]
         },
         "service.AuthRequest": {
             "type": "object",
             "properties": {
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "demo123!"
                 },
                 "username": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "player_34633089486"
                 }
             }
         },
@@ -412,7 +416,6 @@ const docTemplate = `{
         "shared.DepositRequest": {
             "type": "object",
             "required": [
-                "amount",
                 "currency",
                 "provider_transaction_id",
                 "provider_withdrawn_transaction_id"
@@ -485,7 +488,6 @@ const docTemplate = `{
             "properties": {
                 "amount": {
                     "type": "number",
-                    "minimum": 1,
                     "example": 100
                 },
                 "currency": {
@@ -507,11 +509,13 @@ const docTemplate = `{
             "enum": [
                 "REQUEST_VALIDATION_ERROR",
                 "SERVICE_UNAVAILABLE",
+                "INTERNAL_SERVER_ERROR",
                 "UNAUTHORIZED"
             ],
             "x-enum-varnames": [
                 "ValidationError",
                 "ServiceUnAvailable",
+                "InternalServerError",
                 "Unauthorized"
             ]
         }
