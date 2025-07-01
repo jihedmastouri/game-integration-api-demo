@@ -32,7 +32,12 @@ type PlayerRepository interface {
 	CreatePlayerSession(ctx context.Context, playerID uint64) (*models.PlayerSession, error)
 }
 
-type TransactionRepository interface{}
+type TransactionRepository interface {
+	CreateTransaction(ctx context.Context, transaction *models.Transaction) error
+	GetTransactionByProviderID(ctx context.Context, providerID int) (*models.Transaction, error)
+	UpdateTransaction(ctx context.Context, transaction *models.Transaction) error
+	GetTransactionByID(ctx context.Context, id uuid.UUID) (*models.Transaction, error)
+}
 
 type RepoPostgresSQLProvider struct {
 	PlayerRepository

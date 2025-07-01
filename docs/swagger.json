@@ -70,6 +70,142 @@
                 }
             }
         },
+        "/api/v1/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reverts a previously processed transaction by reversing its financial impact",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Betting"
+                ],
+                "summary": "Cancel a transaction",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Cancel request details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/shared.CancelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transaction cancelled successfully",
+                        "schema": {
+                            "$ref": "#/definitions/shared.BetOperationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Transaction not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/deposit": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Processes a deposit into a player's account. Represents bet settlement - if amount is zero, bet is LOST; otherwise, bet is WON.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Betting"
+                ],
+                "summary": "Settle a bet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Settle request details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/shared.DepositRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bet settled successfully",
+                        "schema": {
+                            "$ref": "#/definitions/shared.BetOperationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/player-info": {
             "get": {
                 "security": [
@@ -119,9 +255,102 @@
                     }
                 }
             }
+        },
+        "/api/v1/withdraw": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Processes a withdrawal from a player's balance. Each request represents a bet placement action.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Betting"
+                ],
+                "summary": "Process a bet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Bet request details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/shared.WithdrawRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bet processed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/shared.BetOperationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "models.Currency": {
+            "type": "string",
+            "enum": [
+                "USD",
+                "EUR",
+                "KES"
+            ],
+            "x-enum-varnames": [
+                "CurrencyUSD",
+                "CurrencyEUR",
+                "CurrencyKES"
+            ]
+        },
+        "models.TransactionStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "FAILED",
+                "COMPENSATED"
+            ],
+            "x-enum-varnames": [
+                "TransactionStatusPending",
+                "TransactionStatusConfirmed",
+                "TransactionStatusFailed",
+                "TransactionStatusCompensated"
+            ]
+        },
         "service.AuthRequest": {
             "type": "object",
             "properties": {
@@ -130,6 +359,79 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "shared.BetOperationResponse": {
+            "type": "object",
+            "properties": {
+                "new_balance": {
+                    "type": "string",
+                    "example": "1000.50"
+                },
+                "old_balance": {
+                    "type": "string",
+                    "example": "1900.50"
+                },
+                "provider_transaction_id": {
+                    "type": "integer",
+                    "example": 12345
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.TransactionStatus"
+                        }
+                    ],
+                    "example": "CONFIRMED"
+                },
+                "transaction_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "shared.CancelRequest": {
+            "type": "object",
+            "required": [
+                "provider_transaction_id"
+            ],
+            "properties": {
+                "provider_transaction_id": {
+                    "type": "integer",
+                    "example": 12345
+                }
+            }
+        },
+        "shared.DepositRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "currency",
+                "provider_transaction_id",
+                "provider_withdrawn_transaction_id"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 1000
+                },
+                "currency": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Currency"
+                        }
+                    ],
+                    "example": "USD"
+                },
+                "provider_transaction_id": {
+                    "type": "integer",
+                    "example": 12345
+                },
+                "provider_withdrawn_transaction_id": {
+                    "type": "integer",
+                    "example": 12344
                 }
             }
         },
@@ -164,6 +466,33 @@
                 "user_id": {
                     "type": "integer",
                     "example": 1
+                }
+            }
+        },
+        "shared.WithdrawRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "currency",
+                "provider_transaction_id"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "minimum": 1,
+                    "example": 100
+                },
+                "currency": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Currency"
+                        }
+                    ],
+                    "example": "USD"
+                },
+                "provider_transaction_id": {
+                    "type": "integer",
+                    "example": 12345
                 }
             }
         },
