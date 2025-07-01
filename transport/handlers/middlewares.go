@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/jihedmastouri/game-integration-api-demo/internal"
 	"github.com/jihedmastouri/game-integration-api-demo/service"
+	"github.com/jihedmastouri/game-integration-api-demo/transport/shared"
 	"github.com/labstack/echo/v4"
 )
 
@@ -15,8 +15,8 @@ func AuthMiddlewareFactory(s *service.Service) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			token := c.Request().Header.Get("Authorization")
 			if token == "" {
-				return echo.NewHTTPError(http.StatusUnauthorized, internal.ErrRestResponse{
-					Code: internal.Unauthorized,
+				return echo.NewHTTPError(http.StatusUnauthorized, shared.ErrorResponse{
+					Code: shared.Unauthorized,
 					Msg:  "Authorization header is empty",
 				})
 			}

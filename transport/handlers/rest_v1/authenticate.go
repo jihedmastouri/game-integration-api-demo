@@ -8,6 +8,18 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// Authenticate godoc
+// @Summary Authenticate player
+// @Description Authenticates a player using username and password, returns a JWT token
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body service.AuthRequest true "Authentication credentials"
+// @Success 200 {object} map[string]string "Authentication successful"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 401 {object} shared.ErrorResponse "Unauthorized"
+// @Failure 500 {object} shared.ErrorResponse "Internal server error"
+// @Router /api/v1/auth [post]
 func (h *Handlers) Authenticate(c echo.Context) error {
 	var req service.AuthRequest
 

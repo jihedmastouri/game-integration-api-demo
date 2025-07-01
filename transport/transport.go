@@ -18,6 +18,24 @@ import (
 	_ "github.com/jihedmastouri/game-integration-api-demo/docs"
 )
 
+// Package main Game Integration API
+//
+// This is a gaming integration API that provides endpoints for player management,
+// betting operations, and transaction processing.
+//
+// The API uses JWT authentication for all protected endpoints.
+//
+// @title Game Integration API
+// @version 1.0
+// @description Game Integration API for managing players, bets, and transactions
+// @contact.name API Support
+// @contact.email support@gameintegration.com
+// @host localhost:3000
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 func Web(address string, srv *service.Service, logger *slog.Logger) *echo.Echo {
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
