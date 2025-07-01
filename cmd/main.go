@@ -37,10 +37,16 @@ func main() {
 	}
 
 	srv := service.NewService(repo)
+
+	// Start pending transaction worker
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+	go srv.StartPendingTransactionWorker(workerCtx)
+
 	server := transport.Web(internal.Config.APP_URL, srv, logger)
 
 	done := make(chan bool, 1)
-	go gracefulShutdown(server, done)
+	go gracefulShutdown(server, workerCancel, done)
 
 	// Start server
 	if err := server.Start(internal.Config.APP_URL); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -56,12 +62,15 @@ type ServerWithShutdown interface {
 	Shutdown(context.Context) error
 }
 
-func gracefulShutdown(apiServer ServerWithShutdown, done chan bool) {
+func gracefulShutdown(apiServer ServerWithShutdown, workerCancel context.CancelFunc, done chan bool) {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	<-ctx.Done()
 	slog.Info("Shutdown signal received, shutting down gracefully. Press Ctrl+C again to force shutdown.")
+
+	// Cancel the worker context first
+	workerCancel()
 
 	// Stop listening for new signals to allow force shutdown
 	stop()

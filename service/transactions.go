@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 
 	"github.com/jihedmastouri/game-integration-api-demo/models"
@@ -11,30 +12,74 @@ import (
 	"github.com/jihedmastouri/game-integration-api-demo/transport/shared"
 )
 
+// Helper method to check if player has pending or processing transactions
+func (s *Service) hasPendingTransactions(ctx context.Context, playerID uint64) (bool, error) {
+	pendingTxs, err := s.Repository.GetFirstPendingTransactionsByPlayerID(ctx, playerID)
+	if err != nil {
+		return false, err
+	}
+
+	// Also check for processing transactions
+	processingTxs, err := s.Repository.GetFirstProcessingTransactionsByPlayerID(ctx, playerID)
+	if err != nil {
+		return false, err
+	}
+
+	return processingTxs != nil || pendingTxs != nil, nil
+}
+
 func (s *Service) ProcessBet(ctx context.Context, player *models.Player, req shared.WithdrawRequest) (*shared.BetOperationResponse, error) {
+	prevTx, err := s.GetTransactionByProviderID(ctx, req.ProviderTransactionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check for any previous transactions: %w", err)
+	}
+
+	// reject duplicate transaction
+	if prevTx != nil {
+		return nil, fmt.Errorf("Duplicate transaction")
+	}
+
+	// Check if player has any pending transactions
+	hasPending, err := s.hasPendingTransactions(ctx, player.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check pending transactions: %w", err)
+	}
 
 	// Create transaction record
 	transaction := &models.Transaction{
 		PlayerID:   player.ID,
 		ProviderID: req.ProviderTransactionID,
-		Amount:     uint64(req.Amount),
+		Amount:     strconv.FormatFloat(req.Amount, 'f', -1, 64),
 		Currency:   req.Currency,
 		Status:     models.TransactionStatusPending,
 		Type:       models.TransactionTypeWithdraw,
 		Attempts:   0,
 	}
 
-	err := s.Repository.CreateTransaction(ctx, transaction)
+	err = s.Repository.CreateTransaction(ctx, transaction)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
 
-	// Get current balance before withdrawal
+	// If player has pending transactions, keep this one pending too
+	if hasPending {
+		slog.Info("Player has pending transactions, keeping bet transaction pending", "player_id", player.ID, "transaction_id", transaction.ID)
+		return &shared.BetOperationResponse{
+			TransactionID:         transaction.ID,
+			ProviderTransactionID: req.ProviderTransactionID,
+			Status:                transaction.Status, // PENDING
+		}, nil
+	}
+
+	// Try to process with wallet service
 	balanceResp, err := s.WalletClient.GetBalance(player.ID)
 	if err != nil {
-		transaction.Status = models.TransactionStatusFailed
-		s.Repository.UpdateTransaction(ctx, transaction)
-		return nil, fmt.Errorf("failed to get balance: %w", err)
+		slog.Error("Failed to get balance, keeping transaction pending", "error", err, "player_id", player.ID, "transaction_id", transaction.ID)
+		return &shared.BetOperationResponse{
+			TransactionID:         transaction.ID,
+			ProviderTransactionID: req.ProviderTransactionID,
+			Status:                transaction.Status, // PENDING
+		}, nil
 	}
 	oldBalance := balanceResp.Balance
 
@@ -44,18 +89,23 @@ func (s *Service) ProcessBet(ctx context.Context, player *models.Player, req sha
 		Currency: string(req.Currency),
 		Transactions: []walletclient.WithdrawRequestTransaction{
 			{
-				Amount:    req.Amount,
+				Amount:    float64(req.Amount),
 				BetID:     req.ProviderTransactionID,
-				Reference: strconv.Itoa(req.ProviderTransactionID),
+				Reference: transaction.ID.String(),
 			},
 		},
 	}
 
 	withdrawResp, err := s.WalletClient.Withdraw(withdrawReq)
 	if err != nil {
-		transaction.Status = models.TransactionStatusFailed
-		s.Repository.UpdateTransaction(ctx, transaction)
-		return nil, fmt.Errorf("failed to process withdrawal: %w", err)
+		slog.Error("Failed to process withdrawal, keeping transaction pending", "error", err, "player_id", player.ID, "transaction_id", transaction.ID)
+		return &shared.BetOperationResponse{
+			TransactionID:         transaction.ID,
+			ProviderTransactionID: req.ProviderTransactionID,
+			OldBalance:            oldBalance,
+			NewBalance:            oldBalance,         // No change since withdrawal failed
+			Status:                transaction.Status, // PENDING
+		}, nil
 	}
 
 	// Update transaction status
@@ -75,28 +125,57 @@ func (s *Service) ProcessBet(ctx context.Context, player *models.Player, req sha
 }
 
 func (s *Service) ProcessSettle(ctx context.Context, player *models.Player, req shared.DepositRequest) (*shared.BetOperationResponse, error) {
+	prevTx, err := s.GetTransactionByProviderID(ctx, req.ProviderTransactionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check for any previous transactions: %w", err)
+	}
+
+	// reject duplicate transaction
+	if prevTx != nil {
+		return nil, fmt.Errorf("Duplicate transaction")
+	}
+
+	// Check if player has any pending transactions
+	hasPending, err := s.hasPendingTransactions(ctx, player.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check pending transactions: %w", err)
+	}
+
 	// Create transaction record
 	transaction := &models.Transaction{
 		PlayerID:   player.ID,
 		ProviderID: req.ProviderTransactionID,
-		Amount:     uint64(req.Amount),
+		Amount:     strconv.FormatFloat(req.Amount, 'f', -1, 64),
 		Currency:   req.Currency,
 		Status:     models.TransactionStatusPending,
 		Type:       models.TransactionTypeDeposit,
 		Attempts:   0,
 	}
 
-	err := s.Repository.CreateTransaction(ctx, transaction)
+	err = s.Repository.CreateTransaction(ctx, transaction)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
 
-	// Get current balance before deposit
+	// If player has pending transactions, keep this one pending too
+	if hasPending {
+		slog.Info("Player has pending transactions, keeping settle transaction pending", "player_id", player.ID, "transaction_id", transaction.ID)
+		return &shared.BetOperationResponse{
+			TransactionID:         transaction.ID,
+			ProviderTransactionID: req.ProviderTransactionID,
+			Status:                transaction.Status, // PENDING
+		}, nil
+	}
+
+	// Try to process with wallet service
 	balanceResp, err := s.WalletClient.GetBalance(player.ID)
 	if err != nil {
-		transaction.Status = models.TransactionStatusFailed
-		s.Repository.UpdateTransaction(ctx, transaction)
-		return nil, fmt.Errorf("failed to get balance: %w", err)
+		slog.Error("Failed to get balance, keeping transaction pending", "error", err, "player_id", player.ID, "transaction_id", transaction.ID)
+		return &shared.BetOperationResponse{
+			TransactionID:         transaction.ID,
+			ProviderTransactionID: req.ProviderTransactionID,
+			Status:                transaction.Status, // PENDING
+		}, nil
 	}
 	oldBalance := balanceResp.Balance
 
@@ -108,19 +187,37 @@ func (s *Service) ProcessSettle(ctx context.Context, player *models.Player, req 
 			Currency: string(req.Currency),
 			Transactions: []walletclient.DepositRequestTransaction{
 				{
-					Amount:    req.Amount,
+					Amount:    float64(req.Amount),
 					BetID:     req.ProviderWithdrawnTransactionID,
-					Reference: strconv.Itoa(req.ProviderTransactionID),
+					Reference: transaction.ID.String(),
 				},
 			},
 		}
 
 		depositResp, err := s.WalletClient.Deposit(depositReq)
 		if err != nil {
-			transaction.Status = models.TransactionStatusFailed
-			s.Repository.UpdateTransaction(ctx, transaction)
-			return nil, fmt.Errorf("failed to process deposit: %w", err)
+			slog.Error("Failed to process deposit, keeping transaction pending", "error", err, "player_id", player.ID, "transaction_id", transaction.ID)
+			return &shared.BetOperationResponse{
+				TransactionID:         transaction.ID,
+				ProviderTransactionID: req.ProviderTransactionID,
+				OldBalance:            oldBalance,
+				NewBalance:            oldBalance,         // No change since deposit failed
+				Status:                transaction.Status, // PENDING
+			}, nil
 		}
+
+		//update withdraw transaction
+		oldTx, err := s.GetTransactionByProviderID(ctx, req.ProviderWithdrawnTransactionID)
+		if err != nil {
+			slog.Error("failed to update withdraw transaction", "error", err)
+		}
+
+		oldTx.Status = models.TransactionStatusCompensated
+		s.UpdateTransaction(ctx, oldTx)
+		if err != nil {
+			slog.Error("failed to update withdraw transaction", "error", err)
+		}
+
 		newBalance = depositResp.Balance
 	} else {
 		// If amount is 0, bet is lost - no deposit needed
@@ -144,6 +241,12 @@ func (s *Service) ProcessSettle(ctx context.Context, player *models.Player, req 
 }
 
 func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req shared.CancelRequest) (*shared.BetOperationResponse, error) {
+	// Check if player has any pending transactions
+	hasPending, err := s.hasPendingTransactions(ctx, player.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check pending transactions: %w", err)
+	}
+
 	// Find the original transaction to cancel
 	originalTx, err := s.Repository.GetTransactionByProviderID(ctx, req.ProviderTransactionID)
 	if err != nil {
@@ -153,6 +256,17 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 	// Validate the transaction belongs to this player
 	if originalTx.PlayerID != player.ID {
 		return nil, errors.New("transaction does not belong to this player")
+	}
+
+	// Validate the transaction belongs to this player
+	if originalTx.Status == models.TransactionStatusCompensated {
+		return nil, errors.New("transaction already finalized")
+	}
+
+	originalTx.Status = models.TransactionStatusCompensated
+	err = s.Repository.UpdateTransaction(ctx, originalTx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update original transaction: %w", err)
 	}
 
 	// Create cancel transaction record
@@ -171,14 +285,32 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 		return nil, fmt.Errorf("failed to create cancel transaction: %w", err)
 	}
 
-	// Get current balance
+	// If player has pending transactions, keep this one pending too
+	if hasPending {
+		slog.Info("Player has pending transactions, keeping cancel transaction pending", "player_id", player.ID, "transaction_id", cancelTx.ID)
+		return &shared.BetOperationResponse{
+			TransactionID:         cancelTx.ID,
+			ProviderTransactionID: req.ProviderTransactionID,
+			Status:                cancelTx.Status, // PENDING
+		}, nil
+	}
+
+	// Try to process with wallet service
 	balanceResp, err := s.WalletClient.GetBalance(player.ID)
 	if err != nil {
-		cancelTx.Status = models.TransactionStatusFailed
-		s.Repository.UpdateTransaction(ctx, cancelTx)
-		return nil, fmt.Errorf("failed to get balance: %w", err)
+		slog.Error("Failed to get balance, keeping transaction pending", "error", err, "player_id", player.ID, "transaction_id", cancelTx.ID)
+		return &shared.BetOperationResponse{
+			TransactionID:         cancelTx.ID,
+			ProviderTransactionID: req.ProviderTransactionID,
+			Status:                cancelTx.Status, // PENDING
+		}, nil
 	}
 	oldBalance := balanceResp.Balance
+
+	ogAmount, err := strconv.ParseFloat(originalTx.Amount, 64)
+	if err != nil {
+		return nil, err
+	}
 
 	var newBalance string
 
@@ -190,7 +322,7 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 			Currency: string(originalTx.Currency),
 			Transactions: []walletclient.DepositRequestTransaction{
 				{
-					Amount:    float64(originalTx.Amount),
+					Amount:    ogAmount,
 					BetID:     originalTx.ProviderID,
 					Reference: fmt.Sprintf("cancel-%d", req.ProviderTransactionID),
 				},
@@ -199,9 +331,14 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 
 		depositResp, err := s.WalletClient.Deposit(depositReq)
 		if err != nil {
-			cancelTx.Status = models.TransactionStatusFailed
-			s.Repository.UpdateTransaction(ctx, cancelTx)
-			return nil, fmt.Errorf("failed to process cancel deposit: %w", err)
+			slog.Error("Failed to process cancel deposit, keeping transaction pending", "error", err, "player_id", player.ID, "transaction_id", cancelTx.ID)
+			return &shared.BetOperationResponse{
+				TransactionID:         cancelTx.ID,
+				ProviderTransactionID: req.ProviderTransactionID,
+				OldBalance:            oldBalance,
+				NewBalance:            oldBalance,      // No change since deposit failed
+				Status:                cancelTx.Status, // PENDING
+			}, nil
 		}
 		newBalance = depositResp.Balance
 	} else if originalTx.Type == models.TransactionTypeDeposit {
@@ -211,7 +348,7 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 			Currency: string(originalTx.Currency),
 			Transactions: []walletclient.WithdrawRequestTransaction{
 				{
-					Amount:    float64(originalTx.Amount),
+					Amount:    ogAmount,
 					BetID:     originalTx.ProviderID,
 					Reference: fmt.Sprintf("cancel-%d", req.ProviderTransactionID),
 				},
@@ -220,9 +357,14 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 
 		withdrawResp, err := s.WalletClient.Withdraw(withdrawReq)
 		if err != nil {
-			cancelTx.Status = models.TransactionStatusFailed
-			s.Repository.UpdateTransaction(ctx, cancelTx)
-			return nil, fmt.Errorf("failed to process cancel withdrawal: %w", err)
+			slog.Error("Failed to process cancel withdrawal, keeping transaction pending", "error", err, "player_id", player.ID, "transaction_id", cancelTx.ID)
+			return &shared.BetOperationResponse{
+				TransactionID:         cancelTx.ID,
+				ProviderTransactionID: req.ProviderTransactionID,
+				OldBalance:            oldBalance,
+				NewBalance:            oldBalance,      // No change since withdrawal failed
+				Status:                cancelTx.Status, // PENDING
+			}, nil
 		}
 		newBalance = withdrawResp.Balance
 	} else {
@@ -231,16 +373,10 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 
 	// Update transaction statuses
 	cancelTx.Status = models.TransactionStatusConfirmed
-	originalTx.Status = models.TransactionStatusCompensated
 
 	err = s.Repository.UpdateTransaction(ctx, cancelTx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update cancel transaction: %w", err)
-	}
-
-	err = s.Repository.UpdateTransaction(ctx, originalTx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update original transaction: %w", err)
 	}
 
 	return &shared.BetOperationResponse{

@@ -23,6 +23,7 @@ const (
 	TransactionStatusConfirmed   TransactionStatus = "CONFIRMED"
 	TransactionStatusFailed      TransactionStatus = "FAILED"
 	TransactionStatusCompensated TransactionStatus = "COMPENSATED"
+	TransactionStatusProcessing  TransactionStatus = "PROCESSING"
 
 	// Currencies
 	CurrencyUSD Currency = "USD"
@@ -33,15 +34,16 @@ const (
 type Transaction struct {
 	bun.BaseModel `bun:"table:transactions,alias:t"`
 
-	ID         uuid.UUID `bun:",pk,type:uuid,default:uuid_generate_v4()"`
-	Player     *Player   `bun:"rel:belongs-to,join:player_id=id"`
-	PlayerID   uint64    `json:"-"`
-	ProviderID int
-	Amount     uint64
-	Currency   Currency
-	Status     TransactionStatus
-	Type       TransactionType
-	Attempts   int
-	CreatedAt  time.Time `bun:"created_at"`
-	UpdatedAt  time.Time `bun:"updated_at"`
+	ID                 uuid.UUID `bun:",pk,type:uuid,default:uuid_generate_v4()"`
+	Player             *Player   `bun:"rel:belongs-to,join:player_id=id"`
+	PlayerID           uint64    `json:"-"`
+	ProviderID         uint64
+	WithdrawProviderID uint64 `bun:"withdraw_provider_id"`
+	Amount             string
+	Currency           Currency
+	Status             TransactionStatus
+	Type               TransactionType
+	Attempts           int
+	CreatedAt          time.Time `bun:"created_at"`
+	UpdatedAt          time.Time `bun:"updated_at"`
 }

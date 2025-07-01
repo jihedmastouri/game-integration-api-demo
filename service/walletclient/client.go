@@ -34,7 +34,7 @@ type DepositRequest struct {
 
 type DepositRequestTransaction struct {
 	Amount    float64 `json:"amount" binding:"required"`
-	BetID     int     `json:"betId" binding:"required"`
+	BetID     uint64  `json:"betId" binding:"required"`
 	Reference string  `json:"reference" binding:"required"`
 }
 
@@ -46,7 +46,7 @@ type WithdrawRequest struct {
 
 type WithdrawRequestTransaction struct {
 	Amount    float64 `json:"amount" binding:"required"`
-	BetID     int     `json:"betId" binding:"required"`
+	BetID     uint64  `json:"betId" binding:"required"`
 	Reference string  `json:"reference" binding:"required"`
 }
 

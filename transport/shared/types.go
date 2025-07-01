@@ -18,23 +18,23 @@ type PlayerInfoResponse struct {
 type DepositRequest struct {
 	Currency                       models.Currency `json:"currency" validate:"required" example:"USD"`
 	Amount                         float64         `json:"amount" validate:"required,min=0" example:"1000"`
-	ProviderTransactionID          int             `json:"provider_transaction_id" validate:"required" example:"12345"`
-	ProviderWithdrawnTransactionID int             `json:"provider_withdrawn_transaction_id" validate:"required" example:"12344"`
+	ProviderTransactionID          uint64          `json:"provider_transaction_id" validate:"required" example:"12345"`
+	ProviderWithdrawnTransactionID uint64          `json:"provider_withdrawn_transaction_id" validate:"required" example:"12344"`
 }
 
 type WithdrawRequest struct {
 	Currency              models.Currency `json:"currency" validate:"required" example:"USD"`
 	Amount                float64         `json:"amount" validate:"required,min=1" example:"100"`
-	ProviderTransactionID int             `json:"provider_transaction_id" validate:"required" example:"12345"`
+	ProviderTransactionID uint64          `json:"provider_transaction_id" validate:"required" example:"12345"`
 }
 
 type CancelRequest struct {
-	ProviderTransactionID int `json:"provider_transaction_id" validate:"required" example:"12345"`
+	ProviderTransactionID uint64 `json:"provider_transaction_id" validate:"required" example:"12345"`
 }
 
 type BetOperationResponse struct {
 	TransactionID         uuid.UUID                `json:"transaction_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	ProviderTransactionID int                      `json:"provider_transaction_id" example:"12345"`
+	ProviderTransactionID uint64                   `json:"provider_transaction_id" example:"12345"`
 	OldBalance            string                   `json:"old_balance" example:"1900.50"`
 	NewBalance            string                   `json:"new_balance" example:"1000.50"`
 	Status                models.TransactionStatus `json:"status" example:"CONFIRMED"`

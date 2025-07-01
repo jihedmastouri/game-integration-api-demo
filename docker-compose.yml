@@ -9,6 +9,7 @@ services:
     env_file: ".env"
     environment:
       - PG_URL=postgres
+      - WALLET_API_URL=http://wallet-client:8000
     depends_on:
       - postgres
     restart: unless-stopped

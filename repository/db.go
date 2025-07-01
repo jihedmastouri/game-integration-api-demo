@@ -13,6 +13,7 @@ import (
 	"github.com/uptrace/bun/driver/pgdriver"
 	"github.com/uptrace/bun/migrate"
 
+	"github.com/jihedmastouri/game-integration-api-demo/internal"
 	"github.com/jihedmastouri/game-integration-api-demo/models"
 	"github.com/jihedmastouri/game-integration-api-demo/repository/migrations"
 	"github.com/uptrace/bun/extra/bundebug"
@@ -34,9 +35,14 @@ type PlayerRepository interface {
 
 type TransactionRepository interface {
 	CreateTransaction(ctx context.Context, transaction *models.Transaction) error
-	GetTransactionByProviderID(ctx context.Context, providerID int) (*models.Transaction, error)
+	GetTransactionByProviderID(ctx context.Context, providerID uint64) (*models.Transaction, error)
 	UpdateTransaction(ctx context.Context, transaction *models.Transaction) error
 	GetTransactionByID(ctx context.Context, id uuid.UUID) (*models.Transaction, error)
+
+	GetFirstProcessingTransactionsByPlayerID(ctx context.Context, playerID uint64) (*models.Transaction, error)
+	GetFirstPendingTransactionsByPlayerID(ctx context.Context, playerID uint64) (*models.Transaction, error)
+	GetNextProcessableTransaction(ctx context.Context) (*models.Transaction, error)
+	StartProcessingTransaction(ctx context.Context, transactionID uuid.UUID) error
 }
 
 type RepoPostgresSQLProvider struct {
