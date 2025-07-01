@@ -27,29 +27,35 @@ func (h *Handlers) Cancel(c echo.Context) error {
 	// Get player from auth middleware
 	player, ok := c.Get("player").(models.Player)
 	if !ok {
-		return echo.NewHTTPError(http.StatusUnauthorized, "invalid player context")
+		return echo.NewHTTPError(http.StatusUnauthorized, shared.ErrorResponse{
+			Code: shared.Unauthorized,
+			Msg:  "player not found",
+		})
 	}
 
 	// Bind request
 	var req shared.CancelRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, map[string]string{
-			"error": "invalid request format",
+		return echo.NewHTTPError(http.StatusBadRequest, shared.ErrorResponse{
+			Code: shared.ValidationError,
+			Msg:  err.Error(),
 		})
 	}
 
 	// Validate request
 	if err := c.Validate(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, map[string]string{
-			"error": err.Error(),
+		return echo.NewHTTPError(http.StatusBadRequest, shared.ErrorResponse{
+			Code: shared.ValidationError,
+			Msg:  err.Error(),
 		})
 	}
 
 	// Process cancel through service
 	cancelResponse, err := h.srv.ProcessCancel(c.Request().Context(), &player, req)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, map[string]string{
-			"error": err.Error(),
+		return echo.NewHTTPError(http.StatusInternalServerError, shared.ErrorResponse{
+			Code: shared.ServiceUnAvailable,
+			Msg:  err.Error(),
 		})
 	}
 

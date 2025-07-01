@@ -30,10 +30,18 @@ func (h *Handlers) Authenticate(c echo.Context) error {
 		})
 	}
 
+	// Validate request
+	if err := c.Validate(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, shared.ErrorResponse{
+			Code: shared.ValidationError,
+			Msg:  err.Error(),
+		})
+	}
+
 	token, err := h.srv.AuthenticatePlayer(c.Request().Context(), req)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, shared.ErrorResponse{
-			Code: shared.ServiceUnAvailable,
+		return echo.NewHTTPError(http.StatusUnauthorized, shared.ErrorResponse{
+			Code: shared.Unauthorized,
 			Msg:  err.Error(),
 		})
 	}

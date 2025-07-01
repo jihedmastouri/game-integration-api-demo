@@ -29,11 +29,17 @@ func AuthMiddlewareFactory(s *service.Service) echo.MiddlewareFunc {
 			player, err := s.AuthorizePlayer(c.Request().Context(), token)
 			if err != nil {
 				c.Logger().Errorf("failed to validate token: %v", err)
-				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
+				return echo.NewHTTPError(http.StatusUnauthorized, shared.ErrorResponse{
+					Code: shared.Unauthorized,
+					Msg:  "invalide token",
+				})
 			}
 
 			if player == nil {
-				return echo.NewHTTPError(http.StatusUnauthorized, "Failed to found player")
+				return echo.NewHTTPError(http.StatusUnauthorized, shared.ErrorResponse{
+					Code: shared.Unauthorized,
+					Msg:  "player not found",
+				})
 			}
 
 			p := *player

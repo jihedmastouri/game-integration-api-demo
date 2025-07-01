@@ -19,7 +19,15 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug, AddSource: true}))
+	logLevel := slog.LevelInfo
+	if internal.Config.MODE == internal.ModeDevelopment {
+		logLevel = slog.LevelDebug
+	}
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     logLevel,
+		AddSource: true,
+	}))
 	slog.SetDefault(logger)
 
 	repo, err := repository.Connect(internal.Config.DATABASE_URL)

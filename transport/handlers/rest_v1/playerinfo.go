@@ -23,7 +23,10 @@ import (
 func (h *Handlers) PlayerInfo(c echo.Context) error {
 	player, ok := c.Get("player").(models.Player)
 	if !ok {
-		return echo.NewHTTPError(http.StatusUnauthorized, "invalid player context")
+		return echo.NewHTTPError(http.StatusUnauthorized, shared.ErrorResponse{
+			Code: shared.Unauthorized,
+			Msg:  "player not found",
+		})
 	}
 
 	// Get player info from service

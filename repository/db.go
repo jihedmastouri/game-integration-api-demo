@@ -48,12 +48,18 @@ func Connect(databaseUrl string) (*RepoPostgresSQLProvider, error) {
 	slog.Debug(databaseUrl)
 
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(databaseUrl)))
+
+	sqldb.SetMaxOpenConns(internal.Config.DB_MAX_OPEN)
+	sqldb.SetMaxIdleConns(internal.Config.DB_MAX_IDLE)
+
 	db := bun.NewDB(sqldb, pgdialect.New())
 
-	db.AddQueryHook(bundebug.NewQueryHook(
-		bundebug.WithVerbose(true),
-		bundebug.FromEnv("BUNDEBUG"),
-	))
+	if internal.Config.MODE == internal.ModeDevelopment {
+		db.AddQueryHook(bundebug.NewQueryHook(
+			bundebug.WithVerbose(true),
+			bundebug.FromEnv("BUNDEBUG"),
+		))
+	}
 
 	err := db.Ping()
 	if err != nil {
