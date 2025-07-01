@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create players table
 CREATE TABLE players (
-    id SERIAL PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -17,7 +17,7 @@ CREATE TABLE players (
 -- Create player sessions table
 CREATE TABLE player_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    player_id integer REFERENCES players(id) ON DELETE CASCADE,
+    player_id BIGINT REFERENCES players(id) ON DELETE CASCADE,
     expires_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     issued_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -27,8 +27,8 @@ CREATE TABLE player_sessions (
 -- Create transactions table
 CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    player_id integer REFERENCES players(id) ON DELETE CASCADE,
-    provider_id integer NOT NULL,
+    player_id BIGINT REFERENCES players(id) ON DELETE CASCADE,
+    provider_id BIGINT NOT NULL,
     amount BIGINT NOT NULL CHECK (amount >= 0),
     currency VARCHAR(3) NOT NULL CHECK (currency IN ('USD', 'EUR', 'KES')),
     status VARCHAR(12) NOT NULL CHECK (status IN ('PENDING', 'CONFIRMED', 'FAILED', 'COMPENSATED')),

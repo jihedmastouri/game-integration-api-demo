@@ -15,6 +15,7 @@ import (
 
 	"github.com/jihedmastouri/game-integration-api-demo/models"
 	"github.com/jihedmastouri/game-integration-api-demo/repository/migrations"
+	"github.com/uptrace/bun/extra/bundebug"
 )
 
 type Repository interface {
@@ -23,10 +24,11 @@ type Repository interface {
 }
 
 type PlayerRepository interface {
-	GetPlayerByID(ctx context.Context, id int) (*models.Player, error)
+	GetPlayerByID(ctx context.Context, id uint64) (*models.Player, error)
 	GetPlayerByUsername(ctx context.Context, username string) (*models.Player, error)
 	GetPlayerBySession(ctx context.Context, session uuid.UUID) (*models.Player, error)
 
+	CreatePlayer(ctx context.Context, player *models.Player) error
 	CreatePlayerSession(ctx context.Context, playerID uint64) (*models.PlayerSession, error)
 }
 
@@ -42,6 +44,11 @@ func Connect(databaseUrl string) (*RepoPostgresSQLProvider, error) {
 
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(databaseUrl)))
 	db := bun.NewDB(sqldb, pgdialect.New())
+
+	db.AddQueryHook(bundebug.NewQueryHook(
+		bundebug.WithVerbose(true),
+		bundebug.FromEnv("BUNDEBUG"),
+	))
 
 	err := db.Ping()
 	if err != nil {

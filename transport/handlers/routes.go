@@ -16,7 +16,7 @@ func SetupRoutes(e *echo.Echo, srv *service.Service) {
 
 		authv1 := v1Group.Group("", AuthMiddlewareFactory(srv))
 		{
-			authv1.GET("/user-info/:id", echo.MethodNotAllowedHandler)
+			authv1.GET("/player-info", v1Handlers.PlayerInfo)
 			authv1.POST("/withdraw", echo.MethodNotAllowedHandler)
 			authv1.POST("/deposit", echo.MethodNotAllowedHandler)
 			authv1.POST("/cancel", echo.MethodNotAllowedHandler)

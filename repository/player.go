@@ -19,11 +19,16 @@ func NewPlayerProvider(db *bun.DB) PlayerProvider {
 
 func (p PlayerProvider) GetPlayerBySession(ctx context.Context, session uuid.UUID) (*models.Player, error) {
 	player := &models.Player{}
-	err := p.NewSelect().Model(player).Relation("PlayerSession").Where("ps.id = ?", session).Scan(ctx)
+	err := p.NewSelect().
+		Model(player).
+		Relation("PlayerSessions", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.Where("ps.id = ?", session)
+		}).
+		Scan(ctx)
 	return player, err
 }
 
-func (p PlayerProvider) GetPlayerByID(ctx context.Context, id int) (*models.Player, error) {
+func (p PlayerProvider) GetPlayerByID(ctx context.Context, id uint64) (*models.Player, error) {
 	player := &models.Player{}
 	err := p.NewSelect().Model(player).Where("id = ?", id).Scan(ctx)
 	return player, err
@@ -33,6 +38,11 @@ func (p PlayerProvider) GetPlayerByUsername(ctx context.Context, username string
 	player := &models.Player{}
 	err := p.NewSelect().Model(player).Where("username = ?", username).Scan(ctx)
 	return player, err
+}
+
+func (p PlayerProvider) CreatePlayer(ctx context.Context, player *models.Player) error {
+	_, err := p.NewInsert().Model(player).Exec(ctx)
+	return err
 }
 
 func (p PlayerProvider) CreatePlayerSession(ctx context.Context, playerID uint64) (*models.PlayerSession, error) {

@@ -37,7 +37,7 @@ type Transaction struct {
 	Player     *Player   `bun:"rel:belongs-to,join:player_id=id"`
 	PlayerID   uint64    `json:"-"`
 	ProviderID int
-	Amount     uint
+	Amount     uint64
 	Currency   Currency
 	Status     TransactionStatus
 	Type       TransactionType

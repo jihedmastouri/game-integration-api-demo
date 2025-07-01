@@ -22,8 +22,8 @@ func NewWalletClient(baseURL, token string) *WalletClient {
 }
 
 type BalanceResponse struct {
-	Balance  float64 `json:"balance"`
-	Currency string  `json:"currency"`
+	Balance  string `json:"balance"`
+	Currency string `json:"currency"`
 }
 
 type DepositRequest struct {
@@ -33,9 +33,9 @@ type DepositRequest struct {
 }
 
 type DepositRequestTransaction struct {
-	Amount    float64 `json:"amount" binding:"required"`
-	BetID     int     `json:"betId" binding:"required"`
-	Reference string  `json:"reference" binding:"required"`
+	Amount    string `json:"amount" binding:"required"`
+	BetID     int    `json:"betId" binding:"required"`
+	Reference string `json:"reference" binding:"required"`
 }
 
 type WithdrawRequest struct {
@@ -45,13 +45,13 @@ type WithdrawRequest struct {
 }
 
 type WithdrawRequestTransaction struct {
-	Amount    float64 `json:"amount" binding:"required"`
-	BetID     int     `json:"betId" binding:"required"`
-	Reference string  `json:"reference" binding:"required"`
+	Amount    string `json:"amount" binding:"required"`
+	BetID     int    `json:"betId" binding:"required"`
+	Reference string `json:"reference" binding:"required"`
 }
 
 type OperationResponse struct {
-	Balance      float64                        `json:"balance"`
+	Balance      string                         `json:"balance"`
 	Transactions []OperationResponseTransaction `json:"transactions"`
 }
 

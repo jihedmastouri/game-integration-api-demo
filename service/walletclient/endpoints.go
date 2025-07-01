@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 )
@@ -25,10 +26,10 @@ func (w *WalletClient) Withdraw(req WithdrawRequest) (*OperationResponse, error)
 	return &resp, nil
 }
 
-func (w *WalletClient) GetBalance(userID int) (*BalanceResponse, error) {
+func (w *WalletClient) GetBalance(userID uint64) (*BalanceResponse, error) {
 	var resp BalanceResponse
-	url := fmt.Sprintf("/api/v1/withdraw/%d", userID)
-	if err := w.makeJSONRequest("POST", url, nil, &resp); err != nil {
+	url := fmt.Sprintf("/api/v1/balance/%d", userID)
+	if err := w.makeJSONRequest("GET", url, nil, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -37,7 +38,7 @@ func (w *WalletClient) GetBalance(userID int) (*BalanceResponse, error) {
 func (w *WalletClient) makeJSONRequest(method, endpoint string, payload any, response any) error {
 	url := fmt.Sprintf("%s%s", w.baseURL, endpoint)
 
-	var body *bytes.Reader
+	var body io.Reader
 	if payload != nil {
 		data, err := json.Marshal(payload)
 		if err != nil {
@@ -47,12 +48,12 @@ func (w *WalletClient) makeJSONRequest(method, endpoint string, payload any, res
 	}
 
 	httpReq, err := http.NewRequest(method, url, body)
-	if err != nil {
+	if err != nil || httpReq == nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", w.token))
+	httpReq.Header.Set("x-api-key", w.token)
 
 	resp, err := w.client.Do(httpReq)
 	if err != nil {

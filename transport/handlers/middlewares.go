@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// AuthMiddlewareFactory creates an AuthMiddleware with the provided repository
 func AuthMiddlewareFactory(s *service.Service) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -32,10 +32,13 @@ func AuthMiddlewareFactory(s *service.Service) echo.MiddlewareFunc {
 				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
 			}
 
-			c.Set("player_id", player) // Also set as string for compatibility
+			if player == nil {
+				return echo.NewHTTPError(http.StatusUnauthorized, "Failed to found player")
+			}
 
-			err = next(c)
-			return err
+			p := *player
+			c.Set("player", p)
+			return next(c)
 		}
 	}
 }
@@ -45,9 +48,8 @@ func ErrorMiddlewareFactory() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			err := next(c)
 			if err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, echo.Map{
-					"code": err.Error(),
-				})
+				// Maybe send to sentry
+				slog.Error(err.Error())
 			}
 			return err
 		}

@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	echoSwagger "github.com/swaggo/echo-swagger"
 
+	"github.com/jihedmastouri/game-integration-api-demo/models"
 	"github.com/jihedmastouri/game-integration-api-demo/service"
 	"github.com/jihedmastouri/game-integration-api-demo/transport/handlers"
 
@@ -26,6 +27,9 @@ func Web(address string, srv *service.Service, logger *slog.Logger) *echo.Echo {
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
+
+	// Secret seed endpoint
+	e.POST("/seed", seed(srv))
 
 	e.Use(middleware.RequestLoggerWithConfig(
 		middleware.RequestLoggerConfig{
@@ -76,4 +80,46 @@ func (cv *CustomValidation) Validate(i any) error {
 		return fmt.Errorf("Request validation failed: %v", err)
 	}
 	return nil
+}
+
+func seed(srv *service.Service) func(c echo.Context) error {
+	return func(c echo.Context) error {
+		// Create seed users
+		seedUsers := []struct {
+			ID       uint64
+			Username string
+			Password string
+		}{
+			{ID: 34633089486, Username: "player_34633089486", Password: "demo123!"},
+			{ID: 34679664254, Username: "player_34679664254", Password: "demo123!"},
+			{ID: 34616761765, Username: "player_34616761765", Password: "demo123!"},
+			{ID: 34673635133, Username: "player_34673635133", Password: "demo123!"},
+		}
+
+		for _, user := range seedUsers {
+			hashedPassword, err := srv.HashPassword(user.Password)
+			if err != nil {
+				slog.Error("failed to hash password", "error", err)
+				continue
+			}
+
+			player := &models.Player{
+				ID:       user.ID,
+				Username: user.Username,
+				Password: hashedPassword,
+			}
+
+			err = srv.Repository.CreatePlayer(c.Request().Context(), player)
+			if err != nil {
+				slog.Error("failed to create player", "error", err)
+				continue
+			}
+
+			slog.Info("success")
+		}
+
+		return c.JSON(http.StatusOK, map[string]string{
+			"message": "Seed users created successfully",
+		})
+	}
 }

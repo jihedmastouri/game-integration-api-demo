@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -81,7 +82,7 @@ func (s *Service) generateJWT(playerSession *models.PlayerSession) (string, erro
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	secretKey := internal.Config.JWT_SECRET
+	secretKey := []byte(internal.Config.JWT_SECRET)
 	tokenString, err := token.SignedString(secretKey)
 	if err != nil {
 		return "", err
@@ -91,9 +92,10 @@ func (s *Service) generateJWT(playerSession *models.PlayerSession) (string, erro
 }
 
 func (s *Service) validateJWT(tokenString string) (*ClaimType, error) {
-	secretKey := internal.Config.JWT_SECRET
+	secretKey := []byte(internal.Config.JWT_SECRET)
 
-	token, err := jwt.ParseWithClaims(tokenString, &jwt.MapClaims{}, func(token *jwt.Token) (any, error) {
+	var claims ClaimType
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -101,11 +103,12 @@ func (s *Service) validateJWT(tokenString string) (*ClaimType, error) {
 	})
 
 	if err != nil {
+		slog.Error("Failed to parse JWT token", "error", err)
 		return nil, err
 	}
 
-	if claims, ok := token.Claims.(*ClaimType); ok && token.Valid {
-		return claims, nil
+	if token.Valid && len(claims.SessionID) > 0 {
+		return &claims, nil
 	}
 
 	return nil, errors.New("invalid token")
