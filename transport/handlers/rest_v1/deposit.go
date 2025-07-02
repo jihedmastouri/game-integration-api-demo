@@ -55,7 +55,7 @@ func (h *Handlers) Deposit(c echo.Context) error {
 	settleResponse, err := h.srv.ProcessSettle(c.Request().Context(), &player, req)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, shared.ErrorResponse{
-			Code: shared.ServiceUnAvailable,
+			Code: shared.InternalServerError,
 			Msg:  err.Error(),
 		})
 	}

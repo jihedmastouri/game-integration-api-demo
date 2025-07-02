@@ -28,7 +28,7 @@ CREATE TABLE player_sessions (
 CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     player_id BIGINT REFERENCES players(id) ON DELETE CASCADE,
-    provider_id BIGINT NOT NULL UNIQUE,
+    provider_id BIGINT UNIQUE,
     withdraw_provider_id BIGINT,
     amount BIGINT NOT NULL CHECK (amount >= 0),
     currency VARCHAR(3) NOT NULL CHECK (currency IN ('USD', 'EUR', 'KES')),

@@ -255,16 +255,11 @@ func (s *Service) ProcessSettle(ctx context.Context, player *models.Player, req 
 }
 
 func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req shared.CancelRequest) (*shared.BetOperationResponse, error) {
-	// Check if player has any pending transactions
-	hasPending, err := s.hasPendingTransactions(ctx, player.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check pending transactions: %w", err)
-	}
-
 	// Find the original transaction to cancel
-	originalTx, err := s.Repository.GetTransactionByProviderID(ctx, req.ProviderTransactionID)
-	if err != nil {
-		return nil, fmt.Errorf("original transaction not found: %w", err)
+	originalTx, err := s.GetTransactionByProviderID(ctx, req.ProviderTransactionID)
+	if err != nil || originalTx == nil {
+		slog.Error("original transaction not found", "error", err)
+		return nil, fmt.Errorf("original transaction not found")
 	}
 
 	// Validate the transaction belongs to this player
@@ -277,26 +272,26 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 		return nil, errors.New("transaction already finalized")
 	}
 
-	originalTx.Status = models.TransactionStatusFinalized
-	err = s.Repository.UpdateTransaction(ctx, originalTx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update original transaction: %w", err)
-	}
-
 	// Create cancel transaction record
 	cancelTx := &models.Transaction{
-		PlayerID:   player.ID,
-		ProviderID: req.ProviderTransactionID,
-		Amount:     originalTx.Amount,
-		Currency:   originalTx.Currency,
-		Status:     models.TransactionStatusPending,
-		Type:       models.TransactionTypeCancel,
-		Attempts:   0,
+		PlayerID:           player.ID,
+		WithdrawProviderID: req.ProviderTransactionID,
+		Amount:             originalTx.Amount,
+		Currency:           originalTx.Currency,
+		Status:             models.TransactionStatusPending,
+		Type:               models.TransactionTypeCancel,
+		Attempts:           0,
 	}
 
 	err = s.Repository.CreateTransaction(ctx, cancelTx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cancel transaction: %w", err)
+	}
+
+	// Check if player has any pending transactions
+	hasPending, err := s.hasPendingTransactions(ctx, player.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check pending transactions: %w", err)
 	}
 
 	// If player has pending transactions, keep this one pending too
@@ -327,6 +322,12 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 	}
 
 	var newBalance string
+
+	originalTx.Status = models.TransactionStatusFinalized
+	err = s.Repository.UpdateTransaction(ctx, originalTx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update original transaction: %w", err)
+	}
 
 	// Reverse the original transaction
 	if originalTx.Type == models.TransactionTypeWithdraw {
@@ -388,7 +389,6 @@ func (s *Service) ProcessCancel(ctx context.Context, player *models.Player, req 
 
 	// Update transaction statuses
 	cancelTx.Status = models.TransactionStatusConfirmed
-
 	err = s.Repository.UpdateTransaction(ctx, cancelTx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update cancel transaction: %w", err)

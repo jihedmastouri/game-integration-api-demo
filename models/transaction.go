@@ -37,8 +37,8 @@ type Transaction struct {
 	ID                 uuid.UUID `bun:",pk,type:uuid,default:uuid_generate_v4()"`
 	Player             *Player   `bun:"rel:belongs-to,join:player_id=id"`
 	PlayerID           uint64    `json:"-"`
-	ProviderID         uint64
-	WithdrawProviderID uint64 `bun:"withdraw_provider_id"`
+	ProviderID         uint64    `bun:"provider_id,nullzero"`
+	WithdrawProviderID uint64    `bun:"withdraw_provider_id,nullzero"`
 	Amount             string
 	Currency           Currency
 	Status             TransactionStatus
