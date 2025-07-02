@@ -37,33 +37,33 @@ http://localhost:3000/swagger/index.html
 
 ### Notes
 
-* Better to have [Docker](https://www.docker.com/) and [docker-compose](https://docs.docker.com/compose/) installed.
-* Check the `Makefile` for additional useful commands
+- Better to have [Docker](https://www.docker.com/) and [docker-compose](https://docs.docker.com/compose/) installed.
+- Check the `Makefile` for additional useful commands
 
 ## About
 
-* **`POST /auth`**: Authenticate players and provide a JWT.
-* **`GET /player-info`**: Retrieve user details, including balance and currency.
-* **`POST /withdraw`**: Process withdrawals (bet placements).
-* **`POST /deposit`**: Handle deposits (bet settlements).
-* **`POST /cancel`**: Roll back a previous transaction.
+- **`POST /auth`**: Authenticate players and provide a JWT.
+- **`GET /player-info`**: Retrieve user details, including balance and currency.
+- **`POST /withdraw`**: Process withdrawals (bet placements).
+- **`POST /deposit`**: Handle deposits (bet settlements).
+- **`POST /cancel`**: Roll back a previous transaction.
 
 ### Architecture
 
 The system is designed using Clean Architecture principles to ensure low coupling and high cohesion:
 
-* **Core Business Logic**: Encapsulated in `/service`.
-* **Models**: Located in `/models`, defining the application's core entities.
-* **Interfaces and Adapters**:
+- **Core Business Logic**: Encapsulated in `/service`.
+- **Models**: Located in `/models`, defining the application's core entities.
+- **Interfaces and Adapters**:
 
-  * `/repository`: Handles database interactions.
-  * `/transport`: Manages HTTP and other communication interfaces.
+    - `/repository`: Handles database interactions.
+    - `/transport`: Manages HTTP and other communication interfaces.
 
 ### Technologies Used
 
-* **Web Framework**: [Echo](https://echo.labstack.com/)
-* **ORM**: [Bun](https://bun.uptrace.dev/)
-* **Database**: PostgreSQL
+- **Web Framework**: [Echo](https://echo.labstack.com/)
+- **ORM**: [Bun](https://bun.uptrace.dev/)
+- **Database**: PostgreSQL
 
 ## Challenges and Design Decisions
 
@@ -75,10 +75,13 @@ To interface with the mock wallet service:
 - Added retry mechanisms in a separate worker to handle transient failures.
 - Ensured that all transactions for a given user are retried in the correct order.
 
+Note: concurrency is low at the moment. We can use bulk request (the API allows bulk transactions as long
+as they are the same type.). In addition to increasing the number of works and decreasing the timeout cycle.
+
 ### 2- Choosing an ORM
 
-* **Preferred Tool**: [sqlc](https://sqlc.dev/) for its raw SQL flexibility and schema-driven approach. + [goose](https://pressly.github.io/goose/) for managing migrations.
-* **Current Choice**: Bun was chosen for this project due to its lightweight design, despite its documentation gaps.
+- **Preferred Tool**: [sqlc](https://sqlc.dev/) for its raw SQL flexibility and schema-driven approach. + [goose](https://pressly.github.io/goose/) for managing migrations.
+- **Current Choice**: Bun was chosen for this project due to its lightweight design, despite its documentation gaps.
 
 ### 3- Running Wallet Client on Linux (Fedora) amd64
 
@@ -100,8 +103,9 @@ docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 docker run --platform=linux/arm64 --rm -it -p 8000:8000 kentechsp/wallet-client
 ```
 
-## Future Improvements
+## Potential Improvements
 
-* **Improve Resiliency**: Explore an event-sourcing architecture (saga patterns) to better decouple services, keep an event log and mitigate the impact of service outages.
-* **Enhanced Testing**: Add unit, integration, and end-to-end tests.
-* **Monitoring**: Integrate tools like Prometheus and Grafana for observability.
+- **Improve Resiliency**: Explore an event-sourcing architecture (saga patterns) to better decouple services, keep an event log and mitigate the impact of service outages.
+- **Improve Error Handling**: Improve error codes and messages. e.g: hiding internal errors from API messages, standardize error codes...
+- **Enhanced Testing**: Add unit, integration, and end-to-end tests.
+- **Monitoring**: Integrate tools like Prometheus and Grafana for observability.
