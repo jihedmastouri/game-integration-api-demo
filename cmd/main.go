@@ -45,7 +45,7 @@ func main() {
 
 	server := transport.Web(internal.Config.APP_URL, srv, logger)
 
-	done := make(chan bool, 1)
+	done := make(chan struct{})
 	go gracefulShutdown(server, workerCancel, done)
 
 	// Start server
@@ -62,7 +62,7 @@ type ServerWithShutdown interface {
 	Shutdown(context.Context) error
 }
 
-func gracefulShutdown(apiServer ServerWithShutdown, workerCancel context.CancelFunc, done chan bool) {
+func gracefulShutdown(apiServer ServerWithShutdown, workerCancel context.CancelFunc, done chan struct{}) {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -86,5 +86,5 @@ func gracefulShutdown(apiServer ServerWithShutdown, workerCancel context.CancelF
 	}
 
 	// Notify the main goroutine that the shutdown is complete
-	done <- true
+	done <- struct{}{}
 }

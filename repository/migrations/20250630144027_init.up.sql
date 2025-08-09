@@ -30,7 +30,7 @@ CREATE TABLE transactions (
     player_id BIGINT REFERENCES players(id) ON DELETE CASCADE,
     provider_id BIGINT UNIQUE,
     withdraw_provider_id BIGINT,
-    amount BIGINT NOT NULL CHECK (amount >= 0),
+    amount VARCHAR(100) NOT NULL,
     currency VARCHAR(3) NOT NULL CHECK (currency IN ('USD', 'EUR', 'KES')),
     status VARCHAR(12) NOT NULL CHECK (status IN ('PENDING', 'CONFIRMED', 'FAILED', 'FINAL', 'PROCESSING')),
     type VARCHAR(8) NOT NULL CHECK (type IN ('WITHDRAW', 'DEPOSIT', 'CANCEL')),
